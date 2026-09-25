@@ -1,0 +1,7 @@
+ghostchat.db
+ghostchat.db-*
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
