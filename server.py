@@ -619,11 +619,47 @@ def api_market_create():
 @app.post("/api/market/<int:item_id>/toggle")
 def api_market_toggle(item_id):
     user = require_user()
-    row = query("SELECT * FROM listings WHERE id=?", (item_id,), one=True)
-    if not row or row["seller"] != user["nick"]:
-        return jsonify(error="Nicht deine Anzeige"), 403
+    _, err = own_listing(item_id, user)
+    if err:
+        return err
     write("UPDATE listings SET open=CASE open WHEN 1 THEN 0 ELSE 1 END WHERE id=?",
           (item_id,))
+    return jsonify(ok=True)
+
+
+def own_listing(item_id, user):
+    row = query("SELECT * FROM listings WHERE id=?", (item_id,), one=True)
+    if not row:
+        return None, (jsonify(error="Anzeige nicht gefunden"), 404)
+    if row["seller"].lower() != user["nick"].lower():
+        return None, (jsonify(error="Nicht deine Anzeige"), 403)
+    return row, None
+
+
+@app.post("/api/market/<int:item_id>/edit")
+def api_market_edit(item_id):
+    user = require_user()
+    _, err = own_listing(item_id, user)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    title = " ".join(str(data.get("title") or "").split())[:80]
+    price = " ".join(str(data.get("price") or "").split())[:24]
+    descr = str(data.get("descr") or "").strip()[:600]
+    if len(title) < 3:
+        return jsonify(error="Titel zu kurz"), 400
+    write("UPDATE listings SET title=?, price=?, descr=? WHERE id=?",
+          (title, price, descr, item_id))
+    return jsonify(ok=True)
+
+
+@app.post("/api/market/<int:item_id>/delete")
+def api_market_delete(item_id):
+    user = require_user()
+    _, err = own_listing(item_id, user)
+    if err:
+        return err
+    write("DELETE FROM listings WHERE id=?", (item_id,))
     return jsonify(ok=True)
 
 
