@@ -22,6 +22,7 @@ const state = {
   tab: "chats",
   ws: null,
   market: [],
+  editId: null,
   calls: [],
   callStates: {},
   call: null,
@@ -567,27 +568,58 @@ $("#btnBack").addEventListener("click", () => {
 });
 
 /* ---------------------------------------------------------- Marktplatz */
-$("#btnNewListing").addEventListener("click", () => {
+function resetListingForm() {
   const f = $("#listingForm");
-  f.classList.toggle("hidden");
-  if (!f.classList.contains("hidden")) $("#lTitle").focus();
+  f.reset();
+  f.classList.add("hidden");
+  state.editId = null;
+  $("#btnListingSubmit").textContent = "Veröffentlichen";
+}
+
+function openListingForm(item = null) {
+  const f = $("#listingForm");
+  if (item) {
+    state.editId = item.id;
+    $("#lTitle").value = item.title;
+    $("#lPrice").value = item.price || "";
+    $("#lDescr").value = item.descr || "";
+    $("#btnListingSubmit").textContent = "Speichern";
+    toast("Anzeige bearbeiten – Speichern übernimmt die Änderung");
+  } else {
+    state.editId = null;
+    $("#btnListingSubmit").textContent = "Veröffentlichen";
+  }
+  f.classList.remove("hidden");
+  f.scrollIntoView({ block: "nearest" });
+  $("#lTitle").focus();
+}
+
+$("#btnNewListing").addEventListener("click", () => {
+  if (state.editId !== null) { resetListingForm(); return; }
+  const f = $("#listingForm");
+  if (f.classList.contains("hidden")) openListingForm(null);
+  else f.classList.add("hidden");
 });
-$("#btnCancelListing").addEventListener("click", () => $("#listingForm").classList.add("hidden"));
+
+$("#btnCancelListing").addEventListener("click", resetListingForm);
 
 $("#listingForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const payload = {
+    title: $("#lTitle").value,
+    price: $("#lPrice").value,
+    descr: $("#lDescr").value,
+  };
+  const editing = state.editId;
   try {
-    await api("/api/market", {
-      body: {
-        title: $("#lTitle").value,
-        price: $("#lPrice").value,
-        descr: $("#lDescr").value,
-      },
-    });
-    $("#listingForm").reset();
-    $("#listingForm").classList.add("hidden");
+    if (editing) {
+      await api(`/api/market/${editing}/edit`, { body: payload });
+    } else {
+      await api("/api/market", { body: payload });
+    }
+    resetListingForm();
     await loadMarket();
-    toast("Anzeige veröffentlicht");
+    toast(editing ? "Anzeige aktualisiert" : "Anzeige veröffentlicht");
   } catch (err) { toast(err.message); }
 });
 
@@ -615,12 +647,29 @@ function renderMarket() {
     foot.appendChild(el("span", "seller", "von @" + item.seller +
       (item.mine ? " (du)" : "")));
     if (item.mine) {
-      const chip = el("button", "chip dim", item.open ? "Als verkauft markieren" : "Wieder aktivieren");
-      chip.addEventListener("click", async () => {
+      const sold = el("button", "chip dim",
+        item.open ? "Als verkauft" : "Wieder aktivieren");
+      sold.addEventListener("click", async () => {
         try { await api(`/api/market/${item.id}/toggle`, { body: {} }); await loadMarket(); }
         catch (e) { toast(e.message); }
       });
-      foot.appendChild(chip);
+      const edit = el("button", "chip dim", "Bearbeiten");
+      edit.addEventListener("click", () => openListingForm(item));
+      const del = el("button", "chip danger", "Löschen");
+      del.addEventListener("click", async () => {
+        if (!window.confirm('Anzeige "' + item.title + '" wirklich löschen?')) return;
+        try {
+          await api(`/api/market/${item.id}/delete`, { body: {} });
+          if (state.editId === item.id) resetListingForm();
+          await loadMarket();
+          toast("Anzeige gelöscht");
+        } catch (e) { toast(e.message); }
+      });
+      const actions = el("div", "mine-actions");
+      actions.appendChild(sold);
+      actions.appendChild(edit);
+      actions.appendChild(del);
+      foot.appendChild(actions);
     } else if (item.open) {
       const chip = el("button", "chip", "💬 Kontakt");
       chip.addEventListener("click", async () => {
