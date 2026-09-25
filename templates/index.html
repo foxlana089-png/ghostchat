@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17212b">
+<title>GhostChat</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%91%BB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ================= Anmeldung ================= -->
+<div id="auth" class="screen">
+  <div class="auth-card">
+    <div class="logo">👻</div>
+    <h1>GhostChat</h1>
+    <p class="tagline">Anonym chatten · anrufen · verkaufen<span>Kein Handy. Keine Mail. Kein Name.</span></p>
+    <form id="authForm" autocomplete="off">
+      <input id="nick" placeholder="Nickname" maxlength="24" autocomplete="username" spellcheck="false">
+      <input id="pw" type="password" placeholder="Passwort" maxlength="100" autocomplete="current-password">
+      <div class="auth-error" id="authError"></div>
+      <button class="btn primary" type="submit">Einloggen</button>
+      <button class="btn ghost" type="button" id="btnRegister">Konto anlegen</button>
+    </form>
+    <p class="fineprint">Keine Wiederherstellung: Passwort vergessen = neuer Nick.</p>
+  </div>
+</div>
+
+<!-- ================= App ================= -->
+<div id="app" class="screen hidden">
+  <aside id="sidebar">
+    <header class="side-head">
+      <div class="me">
+        <div class="avatar" id="meAvatar">?</div>
+        <div class="me-text"><b id="meNick">–</b><span id="meStatus">verbunden</span></div>
+      </div>
+      <div class="head-actions">
+        <button class="icon-btn" id="btnLogout" title="Abmelden">⏻</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="chats">Chats</button>
+      <button class="tab" data-tab="market">Marktplatz</button>
+      <button class="tab" data-tab="calls">Anrufe</button>
+    </nav>
+
+    <div class="search-wrap">
+      <input id="search" placeholder="Suchen oder neu: Nickname" autocomplete="off" spellcheck="false">
+      <div id="searchResults" class="search-results hidden"></div>
+    </div>
+
+    <ul id="chatList" class="chat-list"></ul>
+    <div class="side-foot">GhostChat · selbst gehostet · keine Werbung</div>
+  </aside>
+
+  <main id="main">
+    <!-- leerer Zustand -->
+    <div id="emptyState" class="empty">
+      <div class="empty-logo">👻</div>
+      <h2>GhostChat</h2>
+      <p>Wähle links ein Gespräch – oder schreib in die <b>Lobby</b>.</p>
+      <p class="fine">Nick + Passwort reichen. Es werden keine Kontaktdaten abgefragt und nichts nach außen gegeben.</p>
+    </div>
+
+    <!-- Chat -->
+    <section id="chatView" class="view hidden">
+      <header class="view-head chat-head">
+        <button class="icon-btn back" id="btnBack" title="Zurück">‹</button>
+        <div class="avatar small" id="roomAvatar">?</div>
+        <div class="head-text"><b id="roomTitle">–</b><span id="roomSub">–</span></div>
+        <div class="head-actions">
+          <span id="callBadge" class="call-badge hidden">🔊 Anruf läuft</span>
+          <button class="icon-btn" id="btnCall" title="Sprachanruf starten">📞</button>
+        </div>
+      </header>
+      <div id="messages" class="messages"><div class="msg-day">Heute</div></div>
+      <footer class="composer">
+        <input id="msgInput" placeholder="Nachricht schreiben…" maxlength="4000" autocomplete="off">
+        <button id="btnSend" class="send" title="Senden (Enter)">➤</button>
+      </footer>
+    </section>
+
+    <!-- Marktplatz -->
+    <section id="marketView" class="view hidden">
+      <header class="view-head">
+        <div class="head-text"><b>Marktplatz</b><span>private Anzeigen – keine Zahlungen über GhostChat</span></div>
+        <div class="head-actions"><button class="btn small primary" id="btnNewListing">+ Anzeige</button></div>
+      </header>
+      <div class="view-body">
+        <form id="listingForm" class="listing-form hidden">
+          <input id="lTitle" placeholder="Was bietest du an?" maxlength="80">
+          <input id="lPrice" placeholder="Preis, z. B. 250 €" maxlength="24">
+          <textarea id="lDescr" placeholder="Kurze Beschreibung" maxlength="600" rows="3"></textarea>
+          <div class="row">
+            <button class="btn primary" type="submit">Veröffentlichen</button>
+            <button class="btn ghost" type="button" id="btnCancelListing">Abbrechen</button>
+          </div>
+        </form>
+        <div id="marketGrid" class="market-grid"></div>
+      </div>
+    </section>
+
+    <!-- Anrufe -->
+    <section id="callsView" class="view hidden">
+      <header class="view-head">
+        <div class="head-text"><b>Anrufe</b><span>Verlauf – gestartet wird im Chat über das 📞-Symbol</span></div>
+      </header>
+      <div class="view-body"><div id="callList" class="call-list"></div></div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= Anruf-Overlay ================= -->
+<div id="callOverlay" class="overlay hidden">
+  <div class="call-card">
+    <div class="call-avatars" id="callAvatars"></div>
+    <div class="call-title" id="callTitle">–</div>
+    <div class="call-status" id="callStatus">Verbindung wird hergestellt…</div>
+    <div class="call-timer" id="callTimer">00:00</div>
+    <div class="call-actions">
+      <button id="btnMute" class="round"><span class="ico">🎙️</span><span class="lbl">Mikro an</span></button>
+      <button id="btnHangup" class="round danger"><span class="ico">📵</span><span class="lbl">Auflegen</span></button>
+    </div>
+    <p class="call-hint">Der Ton läuft über den Server an alle Teilnehmer im Raum – nichts wird aufgezeichnet.</p>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
